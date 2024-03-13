@@ -5,7 +5,7 @@
  * @package ViteForWp
  */
 
-declare( strict_types=1 );
+declare(strict_types=1);
 
 namespace Kucrut\Vite;
 
@@ -37,7 +37,7 @@ function get_manifest( string $manifest_dir ): object {
 		$is_dev = $file_name === $dev_manifest;
 		$manifest_path = "{$manifest_dir}/{$file_name}.json";
 
-		if ( isset( $manifests[ $manifest_path ] ) ) {
+		if ( isset ( $manifests[ $manifest_path ] ) ) {
 			return $manifests[ $manifest_path ];
 		}
 
@@ -48,7 +48,7 @@ function get_manifest( string $manifest_dir ): object {
 		unset( $manifest_path );
 	}
 
-	if ( ! isset( $manifest_path ) ) {
+	if ( ! isset ( $manifest_path ) ) {
 		throw new Exception( esc_html( sprintf( '[Vite] No manifest found in %s.', $manifest_dir ) ) );
 	}
 
@@ -68,7 +68,7 @@ function get_manifest( string $manifest_dir ): object {
 	 */
 	$manifest = apply_filters( 'vite_for_wp__manifest_data', $manifest, $manifest_dir, $manifest_path );
 
-	$manifests[ $manifest_path ] = (object) [
+	$manifests[ $manifest_path ] = (object) [ 
 		'data' => $manifest,
 		'dir' => $manifest_dir,
 		'is_dev' => $is_dev,
@@ -90,7 +90,7 @@ function get_manifest( string $manifest_dir ): object {
  * @return void
  */
 function filter_script_tag( string $handle ): void {
-	add_filter( 'script_loader_tag', fn ( ...$args ) => set_script_type_attribute( $handle, ...$args ), 10, 3 );
+	add_filter( 'script_loader_tag', fn( ...$args ) => set_script_type_attribute( $handle, ...$args ), 10, 3 );
 }
 
 /**
@@ -179,7 +179,7 @@ function inject_react_refresh_preamble_script( object $manifest ): void {
 
 	$react_refresh_script_src = generate_development_asset_src( $manifest, '@react-refresh' );
 	$script_position = 'after';
-	$script = <<< EOS
+	$script = <<<EOS
 import RefreshRuntime from "{$react_refresh_script_src}";
 RefreshRuntime.injectIntoGlobalHook(window);
 window.\$RefreshReg$ = () => {};
@@ -190,8 +190,8 @@ EOS;
 	wp_add_inline_script( VITE_CLIENT_SCRIPT_HANDLE, $script, $script_position );
 	add_filter(
 		'wp_inline_script_attributes',
-		function ( array $attributes ) use ( $script_position ): array {
-			if ( isset( $attributes['id'] ) && $attributes['id'] === VITE_CLIENT_SCRIPT_HANDLE . "-js-{$script_position}" ) {
+		function (array $attributes) use ($script_position): array {
+			if ( isset ( $attributes['id'] ) && $attributes['id'] === VITE_CLIENT_SCRIPT_HANDLE . "-js-{$script_position}" ) {
 				$attributes['type'] = 'module';
 			}
 
@@ -224,18 +224,29 @@ function load_development_asset( object $manifest, string $entry, array $options
 
 	$src = generate_development_asset_src( $manifest, $entry );
 
-	filter_script_tag( $options['handle'] );
+	if ( 'script' === $options['type'] ) {
+		filter_script_tag( $options['handle'] );
 
-	// This is a development script, browsers shouldn't cache it.
-	// phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
-	if ( ! wp_register_script( $options['handle'], $src, $dependencies, null, $options['in-footer'] ) ) {
-		return null;
+		// This is a development script, browsers shouldn't cache it.
+		// phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
+		if ( ! wp_register_script( $options['handle'], $src, $dependencies, null, $options['in-footer'] ) ) {
+			return null;
+		}
+
+		$assets = [ 
+			'scripts' => [ $options['handle'] ],
+			'styles' => $options['css-dependencies'],
+		];
+	} elseif ( 'style' === $options['type'] ) {
+		if ( ! wp_register_style( $options['handle'], $src, $dependencies, null, $options['media'] ) ) {
+			return null;
+		}
+
+		$assets = [ 
+			'styles' => [ $options['handle'] ],
+		];
 	}
 
-	$assets = [
-		'scripts' => [ $options['handle'] ],
-		'styles' => $options['css-dependencies'],
-	];
 
 	/**
 	 * Filter registered development assets
@@ -264,7 +275,7 @@ function load_development_asset( object $manifest, string $entry, array $options
 function load_production_asset( object $manifest, string $entry, array $options ): ?array {
 	$url = prepare_asset_url( $manifest->dir );
 
-	if ( ! isset( $manifest->data->{$entry} ) ) {
+	if ( ! isset ( $manifest->data->{$entry} ) ) {
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			wp_die( esc_html( sprintf( '[Vite] Entry %s not found.', $entry ) ) );
 		}
@@ -272,32 +283,38 @@ function load_production_asset( object $manifest, string $entry, array $options 
 		return null;
 	}
 
-	$assets = [
+	$assets = [ 
 		'scripts' => [],
 		'styles' => [],
 	];
 	$item = $manifest->data->{$entry};
 	$src = "{$url}/{$item->file}";
 
-	if ( ! $options['css-only'] ) {
-		filter_script_tag( $options['handle'] );
-
-		// Don't worry about browser caching as the version is embedded in the file name.
-		// phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
-		if ( wp_register_script( $options['handle'], $src, $options['dependencies'], null, $options['in-footer'] ) ) {
-			$assets['scripts'][] = $options['handle'];
-		}
-	}
-
-	if ( ! empty( $item->css ) ) {
-		foreach ( $item->css as $index => $css_file_path ) {
-			$style_handle = "{$options['handle']}-{$index}";
+	if ( 'script' === $options['type'] ) {
+		if ( ! $options['css-only'] ) {
+			filter_script_tag( $options['handle'] );
 
 			// Don't worry about browser caching as the version is embedded in the file name.
 			// phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
-			if ( wp_register_style( $style_handle, "{$url}/{$css_file_path}", $options['css-dependencies'], null, $options['css-media'] ) ) {
-				$assets['styles'][] = $style_handle;
+			if ( wp_register_script( $options['handle'], $src, $options['dependencies'], null, $options['in-footer'] ) ) {
+				$assets['scripts'][] = $options['handle'];
 			}
+		}
+
+		if ( ! empty ( $item->css ) ) {
+			foreach ( $item->css as $index => $css_file_path ) {
+				$style_handle = "{$options['handle']}-{$index}";
+
+				// Don't worry about browser caching as the version is embedded in the file name.
+				// phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
+				if ( wp_register_style( $style_handle, "{$url}/{$css_file_path}", $options['css-dependencies'], null, $options['css-media'] ) ) {
+					$assets['styles'][] = $style_handle;
+				}
+			}
+		}
+	} elseif ( 'style' === $options['type'] ) {
+		if ( wp_register_style( $options['handle'], $src, $options['dependencies'], null, $options['media'] ) ) {
+			$assets['styles'][] = $options['handle'];
 		}
 	}
 
@@ -324,14 +341,26 @@ function load_production_asset( object $manifest, string $entry, array $options 
  * @return array Array of options merged with defaults.
  */
 function parse_options( array $options ): array {
-	$defaults = [
-		'css-dependencies' => [],
-		'css-media' => 'all',
-		'css-only' => false,
-		'dependencies' => [],
-		'handle' => '',
-		'in-footer' => false,
-	];
+	if ( ! isset ( $options['type'] ) || 'script' === $options['type'] ) {
+		$defaults = [ 
+			'css-dependencies' => [],
+			'css-media' => 'all',
+			'css-only' => false,
+			'dependencies' => [],
+			'handle' => '',
+			'in-footer' => false,
+			'type' => 'script'
+		];
+	} elseif ( 'style' === $options['type'] ) {
+		$defaults = [ 
+			'dependencies' => [],
+			'handle' => '',
+			'media' => 'all',
+			'type' => 'style'
+		];
+	} else {
+		$defaults = [];
+	}
 
 	return wp_parse_args( $options, $defaults );
 }
@@ -357,7 +386,7 @@ function prepare_asset_url( string $dir ) {
 		return $url;
 	}
 
-	['address' => $address, 'fullPath' => $full_path, 'removablePath' => $removable_path] = $url_parts;
+	[ 'address' => $address, 'fullPath' => $full_path, 'removablePath' => $removable_path ] = $url_parts;
 
 	return sprintf( '%s%s', $address, str_replace( $removable_path, '', $full_path ) );
 }
@@ -379,7 +408,7 @@ function prepare_asset_url( string $dir ) {
 function register_asset( string $manifest_dir, string $entry, array $options ): ?array {
 	try {
 		$manifest = get_manifest( $manifest_dir );
-	} catch ( Exception $e ) {
+	} catch (Exception $e) {
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			wp_die( esc_html( $e->getMessage() ) );
 		}
@@ -415,7 +444,7 @@ function enqueue_asset( string $manifest_dir, string $entry, array $options ): b
 		return false;
 	}
 
-	$map = [
+	$map = [ 
 		'scripts' => 'wp_enqueue_script',
 		'styles' => 'wp_enqueue_style',
 	];
