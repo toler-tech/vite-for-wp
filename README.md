@@ -93,13 +93,27 @@ Lastly, add `dev` and `build` scripts to your `package.json`:
 
 ### PHP
 
+Configure the composer repository:
+
+```json
+{
+	// ...The rest of your composer.json
+	"repositories": [
+		{
+			"type": "vcs",
+			"url": "https://github.com/toler-tech/vite-for-wp"
+		}
+	]
+}
+```
+
 Add the composer dependency:
 
 ```sh
 composer require kucrut/vite-for-wp
 ```
 
-If your plugin/theme doesn't use composer, feel free to copy [the main file](https://github.com/kucrut/vite-for-wp/blob/main/vite-for-wp.php) and require it.
+If your plugin/theme doesn't use composer, feel free to copy [the main file](https://github.com/toler-tech/vite-for-wp/blob/main/vite-for-wp.php) and require it.
 
 Enqueue the script:
 
@@ -108,12 +122,14 @@ Enqueue the script:
 
 use Kucrut\Vite;
 
+// For JavaScript.
 add_action( 'wp_enqueue_scripts', function (): void {
-	Vite\enqueue_asset(
+	Vite::enqueue_asset(
 		__DIR__ . '/js/dist',
 		'js/src/main.ts',
 		[
 			'handle' => 'my-script-handle',
+			'type' => 'script', // Optional for JavaScript.
 			'dependencies' => [ 'wp-components', 'some-registered-script-handle' ], // Optional script dependencies. Defaults to empty array.
 			'css-dependencies' => [ 'wp-components', 'some-registered-style-handle' ], // Optional style dependencies. Defaults to empty array.
 			'css-media' => 'all', // Optional.
@@ -122,11 +138,25 @@ add_action( 'wp_enqueue_scripts', function (): void {
 		]
 	);
 } );
+
+// For CSS.
+add_action( 'wp_enqueue_scripts', function (): void {
+	Vite::enqueue_asset(
+		__DIR__ . '/css/dist',
+		'css/src/main.css',
+		[
+			'handle' => 'my-style-handle',
+			'type' => 'style', // Required for CSS.
+			'dependencies' => [ 'wp-components', 'some-registered-style-handle' ], // Optional style dependencies. Defaults to empty array.
+			'media' => 'all', // Optional.
+		]
+	);
+} );
 ```
 
-Note that each entrypoint needs to be enqueued separately, ie. if you have multiple entrypoints, you'll need to call `Vite\enqueue_asset()` for each and every one of them.
+Note that each entrypoint needs to be enqueued separately, ie. if you have multiple entrypoints, you'll need to call `Vite::enqueue_asset()` for each and every one of them.
 
-To only register the asset, use `Vite\register_asset()`. It accepts same parameters as `Vite\enqueue_asset()` and returns an array of scripts and styles handles that you can enqueue later using `wp_enqueue_script()` and `wp_enqueue_style()`. Please note that style assets are only registered in production mode because in development mode, they will be automatically loaded by Vite.
+To only register the asset, use `Vite::register_asset()`. It accepts same parameters as `Vite::enqueue_asset()` and returns an array of scripts and styles handles that you can enqueue later using `wp_enqueue_script()` and `wp_enqueue_style()`. Please note that style assets are only registered in production mode because in development mode, they will be automatically loaded by Vite.
 
 You can now run `npm run dev` when developing your plugin/theme and run `npm run build` to build the production assets.
 
