@@ -1,19 +1,22 @@
 {
 	"name": "@kucrut/vite-for-wp",
-	"version": "0.8.0",
+	"version": "0.9.0",
 	"description": "Vite integration for WordPress plugins and themes development.",
-	"author": "Dzikri Aziz",
+	"authors": [
+		"Dzikri Aziz",
+		"Erin Toler"
+	],
 	"license": "MIT",
 	"packageManager": "pnpm@8.7.4",
 	"type": "module",
 	"types": "types/index.d.ts",
-	"homepage": "https://github.com/kucrut/vite-for-wp",
+	"homepage": "https://github.com/toler-tech/vite-for-wp",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/kucrut/vite-for-wp.git"
+		"url": "https://github.com/toler-tech/vite-for-wp.git"
 	},
 	"bugs": {
-		"url": "https://github.com/kucrut/vite-for-wp/issues"
+		"url": "https://github.com/toler-tech/vite-for-wp/issues"
 	},
 	"keywords": [
 		"vite",
